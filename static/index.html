@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AEO Diagnostic</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1d27;
+      border-bottom: 1px solid #2a2d3a;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    header h1 { font-size: 1.2rem; font-weight: 600; color: #fff; }
+    header span { font-size: 0.75rem; background: #6c63ff22; color: #6c63ff; border: 1px solid #6c63ff44; border-radius: 4px; padding: 2px 8px; }
+
+    main { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+
+    .hero { text-align: center; margin-bottom: 40px; }
+    .hero h2 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 10px; }
+    .hero p { color: #888; font-size: 0.95rem; }
+
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 12px;
+      padding: 8px;
+      margin-bottom: 48px;
+      transition: border-color 0.2s;
+    }
+    .search-bar:focus-within { border-color: #6c63ff; }
+
+    .search-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #e0e0e0;
+      font-size: 1rem;
+      padding: 8px 12px;
+    }
+    .search-bar input::placeholder { color: #555; }
+
+    .search-bar button {
+      background: #6c63ff;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .search-bar button:hover { background: #5a52e0; }
+    .search-bar button:disabled { background: #3a3a5a; cursor: not-allowed; }
+
+    .spinner {
+      display: none;
+      text-align: center;
+      padding: 48px;
+      color: #666;
+    }
+    .spinner.active { display: block; }
+    .dot-pulse { display: inline-flex; gap: 6px; margin-top: 12px; }
+    .dot-pulse span {
+      width: 8px; height: 8px; border-radius: 50%; background: #6c63ff;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+    .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse { 0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
+
+    .error-box {
+      display: none;
+      background: #2a1a1a;
+      border: 1px solid #ff4d4d44;
+      border-radius: 10px;
+      padding: 16px 20px;
+      color: #ff6b6b;
+      margin-bottom: 24px;
+      font-size: 0.9rem;
+    }
+    .error-box.active { display: block; }
+
+    .results { display: none; }
+    .results.active { display: block; }
+
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #555;
+      margin-bottom: 16px;
+    }
+
+    .model-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .model-card {
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .model-card h3 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #6c63ff;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .model-card h3::before {
+      content: '';
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #6c63ff;
+    }
+
+    .ranking-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #1e2130;
+    }
+    .ranking-item:last-child { border-bottom: none; }
+
+    .rank-badge {
+      min-width: 24px; height: 24px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700;
+    }
+    .rank-1 { background: #f6c90022; color: #f6c900; }
+    .rank-2 { background: #adb5bd22; color: #adb5bd; }
+    .rank-3 { background: #cd7f3222; color: #cd7f32; }
+
+    .rank-info { flex: 1; }
+    .rank-info .brand { font-size: 0.9rem; font-weight: 600; color: #e0e0e0; margin-bottom: 3px; }
+    .rank-info .reason { font-size: 0.78rem; color: #666; line-height: 1.4; }
+
+    .scores-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 40px;
+      font-size: 0.875rem;
+    }
+    .scores-table thead tr { border-bottom: 1px solid #2a2d3a; }
+    .scores-table th {
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #555;
+    }
+    .scores-table td { padding: 12px; border-bottom: 1px solid #1a1d27; color: #ccc; }
+    .scores-table tr:last-child td { border-bottom: none; }
+    .scores-table tr:hover td { background: #1a1d27; }
+
+    .brand-name-cell { font-weight: 600; color: #e0e0e0; }
+
+    .bar-wrap { display: flex; align-items: center; gap: 10px; }
+    .bar-bg { flex: 1; background: #1e2130; border-radius: 4px; height: 6px; }
+    .bar-fill { height: 6px; border-radius: 4px; background: #6c63ff; transition: width 0.6s ease; }
+    .bar-label { font-size: 0.8rem; color: #888; min-width: 40px; text-align: right; }
+
+    .consensus-badge {
+      font-size: 0.68rem;
+      background: #6c63ff22;
+      color: #6c63ff;
+      border: 1px solid #6c63ff44;
+      border-radius: 4px;
+      padding: 1px 6px;
+      margin-left: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>AEO Diagnostic</h1>
+  <span>AI Engine Optimization</span>
+</header>
+
+<main>
+  <div class="hero">
+    <h2>How visible is your brand to AI?</h2>
+    <p>Enter any product query to see which brands AI models recommend — and how strongly.</p>
+  </div>
+
+  <div class="search-bar">
+    <input
+      type="text"
+      id="queryInput"
+      placeholder='e.g. "top whey protein for fat loss"'
+      autocomplete="off"
+    />
+    <button id="runBtn" onclick="runDiagnostic()">Run Diagnostic</button>
+  </div>
+
+  <div class="spinner" id="spinner">
+    <p>Querying AI models...</p>
+    <div class="dot-pulse">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="results" id="results">
+    <p class="section-title">Model Rankings</p>
+    <div class="model-grid" id="modelGrid"></div>
+
+    <p class="section-title">AEO Visibility Scores</p>
+    <table class="scores-table">
+      <thead>
+        <tr>
+          <th>Brand</th>
+          <th>Points</th>
+          <th>Models</th>
+          <th>Visibility</th>
+        </tr>
+      </thead>
+      <tbody id="scoresBody"></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+  const input = document.getElementById("queryInput");
+  input.addEventListener("keydown", e => { if (e.key === "Enter") runDiagnostic(); });
+
+  async function runDiagnostic() {
+    const query = input.value.trim();
+    if (!query) return;
+
+    setLoading(true);
+    clearResults();
+
+    try {
+      const res = await fetch("/diagnostic/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Server error");
+      }
+
+      const data = await res.json();
+      renderResults(data);
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderResults(data) {
+    const totalModels = Object.keys(data.model_rankings).length;
+
+    // Model ranking cards
+    const grid = document.getElementById("modelGrid");
+    grid.innerHTML = "";
+    for (const [model, rankings] of Object.entries(data.model_rankings)) {
+      const card = document.createElement("div");
+      card.className = "model-card";
+      card.innerHTML = `<h3>${model}</h3>` + rankings.map(r => `
+        <div class="ranking-item">
+          <div class="rank-badge rank-${r.rank}">${r.rank}</div>
+          <div class="rank-info">
+            <div class="brand">${r.brand_name}</div>
+            <div class="reason">${r.reasoning}</div>
+          </div>
+        </div>
+      `).join("");
+      grid.appendChild(card);
+    }
+
+    // AEO scores table
+    const tbody = document.getElementById("scoresBody");
+    tbody.innerHTML = "";
+    data.aeo_scores.forEach(score => {
+      const consensus = score.model_appearances === totalModels
+        ? '<span class="consensus-badge">consensus</span>' : "";
+      const pct = score.visibility_pct;
+      tbody.innerHTML += `
+        <tr>
+          <td class="brand-name-cell">${score.brand_name}${consensus}</td>
+          <td>${score.total_points}</td>
+          <td>${score.model_appearances} / ${totalModels}</td>
+          <td>
+            <div class="bar-wrap">
+              <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
+              <span class="bar-label">${pct}%</span>
+            </div>
+          </td>
+        </tr>`;
+    });
+
+    document.getElementById("results").classList.add("active");
+  }
+
+  function setLoading(on) {
+    document.getElementById("spinner").classList.toggle("active", on);
+    document.getElementById("runBtn").disabled = on;
+    document.getElementById("runBtn").textContent = on ? "Running..." : "Run Diagnostic";
+  }
+
+  function clearResults() {
+    document.getElementById("results").classList.remove("active");
+    document.getElementById("errorBox").classList.remove("active");
+  }
+
+  function showError(msg) {
+    const box = document.getElementById("errorBox");
+    box.textContent = "Error: " + msg;
+    box.classList.add("active");
+  }
+</script>
+
+</body>
+</html>
